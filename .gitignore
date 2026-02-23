@@ -35,6 +35,9 @@ tmp/
 temp/
 *.tmp
 
+# Test coverage
+coverage/
+
 # OS
 .DS_Store
 Thumbs.db

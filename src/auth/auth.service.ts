@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -12,105 +13,152 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(private jwtService: JwtService) {}
 
   async login(loginDto: LoginDto) {
     const supabase = createSupabaseClient();
 
-    // Buscar usuário
-    const { data: usuario, error } = await supabase
-      .from('tenant_usuarios')
-      .select('*')
-      .eq('tenant_id', loginDto.tenant_id)
-      .eq('email', loginDto.email)
-      .single();
+    try {
+      this.logger.log(
+        `Tentativa de login: ${loginDto.email} (tenant: ${loginDto.tenant_id})`,
+      );
 
-    if (error || !usuario) {
-      throw new UnauthorizedException('Email ou senha inválidos');
-    }
+      // Buscar usuário
+      const { data: usuario, error } = await supabase
+        .from('tenant_usuarios')
+        .select('*')
+        .eq('tenant_id', loginDto.tenant_id)
+        .eq('email', loginDto.email)
+        .single();
 
-    // Verificar senha
-    const senhaValida = await bcrypt.compare(
-      loginDto.senha,
-      usuario.senha_hash,
-    );
+      if (error) {
+        this.logger.warn(
+          `Erro ao buscar usuário ${loginDto.email}: ${error.message}`,
+        );
+      }
 
-    if (!senhaValida) {
-      throw new UnauthorizedException('Email ou senha inválidos');
-    }
+      if (error || !usuario) {
+        this.logger.warn(`Usuário não encontrado: ${loginDto.email}`);
+        throw new UnauthorizedException('Email ou senha inválidos');
+      }
 
-    // Gerar JWT
-    const payload: JwtPayload = {
-      sub: usuario.id,
-      email: usuario.email,
-      tenant_id: usuario.tenant_id,
-      perfil: usuario.perfil,
-    };
+      // Verificar senha
+      const senhaValida = await bcrypt.compare(
+        loginDto.senha,
+        usuario.senha_hash,
+      );
 
-    return {
-      access_token: this.jwtService.sign(payload),
-      usuario: {
-        id: usuario.id,
+      if (!senhaValida) {
+        this.logger.warn(`Senha inválida para: ${loginDto.email}`);
+        throw new UnauthorizedException('Email ou senha inválidos');
+      }
+
+      // Gerar JWT
+      const payload: JwtPayload = {
+        sub: usuario.id,
         email: usuario.email,
-        nome: usuario.nome,
+        tenant_id: usuario.tenant_id,
         perfil: usuario.perfil,
-      },
-    };
+      };
+
+      const token = this.jwtService.sign(payload);
+      this.logger.log(`Login bem-sucedido: ${loginDto.email}`);
+
+      return {
+        access_token: token,
+        usuario: {
+          id: usuario.id,
+          email: usuario.email,
+          nome: usuario.nome,
+          perfil: usuario.perfil,
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      this.logger.error(
+        `Erro ao fazer login: ${error.message}`,
+        error.stack,
+      );
+      throw new UnauthorizedException('Email ou senha inválidos');
+    }
   }
 
   async register(registerDto: RegisterDto) {
     const supabase = createSupabaseClient();
 
-    // Verificar se usuário já existe
-    const { data: usuarioExistente } = await supabase
-      .from('tenant_usuarios')
-      .select('id')
-      .eq('tenant_id', registerDto.tenant_id)
-      .eq('email', registerDto.email)
-      .single();
+    try {
+      this.logger.log(
+        `Tentativa de registro: ${registerDto.email} (tenant: ${registerDto.tenant_id})`,
+      );
 
-    if (usuarioExistente) {
-      throw new BadRequestException('Email já cadastrado neste tenant');
-    }
+      // Verificar se usuário já existe
+      const { data: usuarioExistente, error: erroVerificacao } = await supabase
+        .from('tenant_usuarios')
+        .select('id')
+        .eq('email', registerDto.email)
+        .single();
 
-    // Hash da senha
-    const senhaHash = await bcrypt.hash(registerDto.senha, 10);
+      if (usuarioExistente) {
+        this.logger.warn(`Email já cadastrado: ${registerDto.email}`);
+        throw new BadRequestException('Email já cadastrado neste tenant');
+      }
 
-    // Criar usuário
-    const { data: novoUsuario, error } = await supabase
-      .from('tenant_usuarios')
-      .insert({
-        tenant_id: registerDto.tenant_id,
-        email: registerDto.email,
-        senha_hash: senhaHash,
-        nome: registerDto.nome,
-        perfil: 'usuario',
-        ativo: true,
-      })
-      .select()
-      .single();
+      // Hash da senha
+      const senhaHash = await bcrypt.hash(registerDto.senha, 10);
 
-    if (error) {
-      throw new BadRequestException('Erro ao criar usuário');
-    }
+      // Criar usuário
+      const { data: novoUsuario, error } = await supabase
+        .from('tenant_usuarios')
+        .insert({
+          tenant_id: registerDto.tenant_id,
+          email: registerDto.email,
+          senha_hash: senhaHash,
+          nome: registerDto.nome,
+          perfil: 'usuario',
+          ativo: true,
+        })
+        .select()
+        .single();
 
-    // Gerar JWT
-    const payload: JwtPayload = {
-      sub: novoUsuario.id,
-      email: novoUsuario.email,
-      tenant_id: novoUsuario.tenant_id,
-      perfil: novoUsuario.perfil,
-    };
+      if (error) {
+        this.logger.error(`Erro ao criar usuário: ${error.message}`, error);
+        throw new BadRequestException('Erro ao criar usuário');
+      }
 
-    return {
-      access_token: this.jwtService.sign(payload),
-      usuario: {
-        id: novoUsuario.id,
+      // Gerar JWT
+      const payload: JwtPayload = {
+        sub: novoUsuario.id,
         email: novoUsuario.email,
-        nome: novoUsuario.nome,
+        tenant_id: novoUsuario.tenant_id,
         perfil: novoUsuario.perfil,
-      },
-    };
+      };
+
+      const token = this.jwtService.sign(payload);
+      this.logger.log(`Registro bem-sucedido: ${registerDto.email}`);
+
+      return {
+        access_token: token,
+        usuario: {
+          id: novoUsuario.id,
+          email: novoUsuario.email,
+          nome: novoUsuario.nome,
+          perfil: novoUsuario.perfil,
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(
+        `Erro no registro: ${error.message}`,
+        error.stack,
+      );
+      throw new BadRequestException('Erro ao registrar usuário');
+    }
   }
 
   async refresh(payload: JwtPayload) {
