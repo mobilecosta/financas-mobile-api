@@ -12,6 +12,9 @@ import { MigrationService } from './database/migration.service';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Prefixo global
+  app.setGlobalPrefix('api');
+
   // Middleware de segurança
   app.use(helmet());
 

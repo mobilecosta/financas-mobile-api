@@ -7,8 +7,11 @@ export class CorsMiddleware implements NestMiddleware {
     const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:4200').split(',');
     const origin = req.headers.origin;
 
-    if (allowedOrigins.includes(origin || '')) {
+    if (origin && allowedOrigins.includes(origin)) {
       res.header('Access-Control-Allow-Origin', origin);
+    } else if (!origin) {
+      // Permitir requisições sem origin (ex: testes locais)
+      res.header('Access-Control-Allow-Origin', '*');
     }
 
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
