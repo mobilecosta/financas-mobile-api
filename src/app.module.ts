@@ -1,4 +1,5 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware';
 import { ConfigModule } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AuthModule } from './auth/auth.module';
@@ -21,6 +22,7 @@ import { MigrationService } from './database/migration.service';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(CorsMiddleware).forRoutes('*');
+        consumer.apply(CorsMiddleware).forRoutes('*');
+    consumer.apply(HttpLoggerMiddleware).forRoutes('*');
   }
 }
