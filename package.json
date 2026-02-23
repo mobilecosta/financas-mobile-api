@@ -1,0 +1,61 @@
+{
+  "name": "financas-mobile-api",
+  "version": "1.0.0",
+  "description": "BackEnd para Controle de Financas",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "migration": "node dist/main -migration",
+    "migration:dev": "ts-node src/main.ts -migration",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mobilecosta/financas-mobile-api.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mobilecosta/financas-mobile-api/issues"
+  },
+  "homepage": "https://github.com/mobilecosta/financas-mobile-api#readme",
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.16",
+    "@types/node": "^25.3.0",
+    "@types/uuid": "^10.0.0",
+    "ts-loader": "^9.5.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "webpack": "^5.105.2",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.14",
+    "@nestjs/config": "^4.0.3",
+    "@nestjs/core": "^11.1.14",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.1.14",
+    "@nestjs/swagger": "^11.2.6",
+    "@supabase/supabase-js": "^2.97.0",
+    "@types/passport-jwt": "^4.0.1",
+    "bcryptjs": "^3.0.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "helmet": "^8.1.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "reflect-metadata": "^0.1.14",
+    "rxjs": "^7.8.1",
+    "swagger-ui-express": "^5.0.1",
+    "uuid": "^9.0.1"
+  }
+}
