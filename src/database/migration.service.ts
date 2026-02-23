@@ -16,10 +16,15 @@ export class MigrationService {
       await this.ensureMigrationsTable(supabase);
 
       // Obter migrations já executadas
-      const { data: executedMigrations } = await supabase
+      const { data: executedMigrations, error: fetchError } = await supabase
         .from('schema_migrations')
         .select('version')
         .eq('status', 'success');
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        this.logger.error('Erro ao buscar migrations executadas:', fetchError.message);
+        throw fetchError;
+      }
 
       const executedVersions = new Set(
         executedMigrations?.map((m) => m.version) || [],
@@ -82,18 +87,30 @@ export class MigrationService {
   }
 
   private async ensureMigrationsTable(supabase: any): Promise<void> {
-    const createTableSQL = `
-      CREATE TABLE IF NOT EXISTS schema_migrations (
-        version VARCHAR(50) PRIMARY KEY,
-        executed_at TIMESTAMP DEFAULT NOW(),
-        status VARCHAR(20) DEFAULT 'success'
-      );
-    `;
+    // Tentar verificar se a tabela existe via API do Supabase
+    const { error: checkError } = await supabase
+      .from('schema_migrations')
+      .select('version')
+      .limit(1);
 
-    try {
-      await supabase.rpc('exec_sql', { sql: createTableSQL });
-    } catch (error) {
-      this.logger.warn('Tabela schema_migrations pode já existir');
+    if (checkError && checkError.code === 'PGRST116') {
+      this.logger.log('Tabela schema_migrations não encontrada. Por favor, crie-a manualmente no SQL Editor do Supabase ou certifique-se de que a função exec_sql existe.');
+      
+      // Tentativa de criação via RPC (pode falhar se exec_sql não existir)
+      const createTableSQL = `
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+          version VARCHAR(50) PRIMARY KEY,
+          executed_at TIMESTAMP DEFAULT NOW(),
+          status VARCHAR(20) DEFAULT 'success'
+        );
+      `;
+
+      try {
+        await supabase.rpc('exec_sql', { sql: createTableSQL });
+      } catch (error) {
+        this.logger.error('Falha crítica: A função RPC "exec_sql" não existe no Supabase. Por favor, execute o conteúdo de migrations/000_setup_exec_sql.sql manualmente no SQL Editor do Supabase.');
+        throw new Error('Função RPC exec_sql não encontrada no Supabase.');
+      }
     }
   }
 

@@ -9,7 +9,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "migration": "node dist/main -migration",
-    "migration:dev": "ts-node src/main.ts -migration",
+    "migration:dev": "ts-node -r tsconfig-paths/register src/main.ts -migration",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage"
@@ -29,8 +29,10 @@
     "@nestjs/cli": "^11.0.16",
     "@types/node": "^25.3.0",
     "@types/uuid": "^10.0.0",
+    "dotenv": "^17.3.1",
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "webpack": "^5.105.2",
     "webpack-cli": "^6.0.1"
@@ -49,7 +51,6 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
     "cors": "^2.8.6",
-    "dotenv": "^17.3.1",
     "helmet": "^8.1.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
