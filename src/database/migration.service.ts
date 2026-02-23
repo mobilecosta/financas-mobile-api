@@ -21,9 +21,14 @@ export class MigrationService {
         .select('version')
         .eq('status', 'success');
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        this.logger.error('Erro ao buscar migrations executadas:', fetchError.message);
-        throw fetchError;
+      if (fetchError) {
+        // Erro PGRST116 ou erro de cache do esquema indica que a tabela é nova ou ainda não foi reconhecida
+        if (fetchError.code === 'PGRST116' || fetchError.message.includes('schema cache')) {
+          this.logger.warn('Aviso: Tabela schema_migrations não encontrada ou ainda não cacheada. Assumindo que nenhuma migration foi executada.');
+        } else {
+          this.logger.error('Erro ao buscar migrations executadas:', fetchError.message);
+          throw fetchError;
+        }
       }
 
       const executedVersions = new Set(
@@ -87,30 +92,45 @@ export class MigrationService {
   }
 
   private async ensureMigrationsTable(supabase: any): Promise<void> {
-    // Tentar verificar se a tabela existe via API do Supabase
-    const { error: checkError } = await supabase
-      .from('schema_migrations')
-      .select('version')
-      .limit(1);
+    this.logger.log('Verificando infraestrutura de migrations no Supabase...');
+    
+    // Tentativa de criar a tabela via RPC diretamente (mais confiável se a função exec_sql existir)
+    const createTableSQL = `
+      CREATE TABLE IF NOT EXISTS public.schema_migrations (
+        version VARCHAR(50) PRIMARY KEY,
+        executed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        status VARCHAR(20) DEFAULT 'success'
+      );
+      CREATE INDEX IF NOT EXISTS idx_schema_migrations_status ON public.schema_migrations(status);
+    `;
 
-    if (checkError && checkError.code === 'PGRST116') {
-      this.logger.log('Tabela schema_migrations não encontrada. Por favor, crie-a manualmente no SQL Editor do Supabase ou certifique-se de que a função exec_sql existe.');
+    try {
+      const { error: rpcError } = await supabase.rpc('exec_sql', { sql: createTableSQL });
       
-      // Tentativa de criação via RPC (pode falhar se exec_sql não existir)
-      const createTableSQL = `
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-          version VARCHAR(50) PRIMARY KEY,
-          executed_at TIMESTAMP DEFAULT NOW(),
-          status VARCHAR(20) DEFAULT 'success'
-        );
-      `;
+      if (rpcError) {
+        // Se o erro for que a função não existe, informamos o usuário
+        if (rpcError.message.includes('function public.exec_sql(sql) does not exist') || 
+            rpcError.code === 'PGRST202') {
+          this.logger.error('ERRO CRÍTICO: A função RPC "exec_sql" não foi encontrada no seu banco de dados Supabase.');
+          this.logger.warn('AÇÃO NECESSÁRIA: Você DEVE executar manualmente o conteúdo de "migrations/000_setup_exec_sql.sql" no SQL Editor do Supabase para habilitar as migrations via API.');
+          throw new Error('Infraestrutura de RPC ausente no Supabase.');
+        }
+        
+        // Se for erro de cache do esquema (PGRST116/PGRST200), podemos ignorar se a tabela já existir
+        if (rpcError.message.includes('schema cache')) {
+          this.logger.warn('Aviso: O cache do esquema do Supabase ainda não reconheceu as novas tabelas. Tentando prosseguir...');
+          return;
+        }
 
-      try {
-        await supabase.rpc('exec_sql', { sql: createTableSQL });
-      } catch (error) {
-        this.logger.error('Falha crítica: A função RPC "exec_sql" não existe no Supabase. Por favor, execute o conteúdo de migrations/000_setup_exec_sql.sql manualmente no SQL Editor do Supabase.');
-        throw new Error('Função RPC exec_sql não encontrada no Supabase.');
+        throw rpcError;
       }
+      
+      this.logger.log('Tabela de controle de migrations verificada/criada com sucesso.');
+    } catch (error: any) {
+      if (error.message.includes('Infraestrutura de RPC ausente')) {
+        throw error;
+      }
+      this.logger.warn(`Aviso ao verificar tabela de migrations: ${error.message}`);
     }
   }
 
