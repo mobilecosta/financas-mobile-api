@@ -18,7 +18,7 @@ import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
 import { PaginationDto } from '@/common/dto/pagination.dto';
 
 @ApiTags('Contas')
-@Controller('api/contas')
+@Controller('contas')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class ContasController {
