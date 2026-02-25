@@ -10,6 +10,7 @@ import { createSupabaseClient } from '@/config/supabase.config';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class AuthService {
@@ -83,7 +84,7 @@ export class AuthService {
         `Erro ao fazer login: ${error.message}`,
         error.stack,
       );
-      throw new UnauthorizedException('Email ou senha inválidos');
+      throw new UnauthorizedException(error.message || 'Email ou senha inválidos');
     }
   }
 
@@ -115,6 +116,7 @@ export class AuthService {
         .from('tenant_usuarios')
         .insert({
           tenant_id: registerDto.tenant_id,
+          id: uuidv4(),
           email: registerDto.email,
           senha_hash: senhaHash,
           nome: registerDto.nome,
@@ -126,7 +128,7 @@ export class AuthService {
 
       if (error) {
         this.logger.error(`Erro ao criar usuário: ${error.message}`, error);
-        throw new BadRequestException('Erro ao criar usuário');
+        throw new BadRequestException(`Erro ao criar usuário: ${error.message}`);
       }
 
       // Gerar JWT
@@ -157,7 +159,7 @@ export class AuthService {
         `Erro no registro: ${error.message}`,
         error.stack,
       );
-      throw new BadRequestException('Erro ao registrar usuário');
+      throw new BadRequestException(error.message || 'Erro ao registrar usuário');
     }
   }
 

@@ -45,9 +45,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const status = HttpStatus.INTERNAL_SERVER_ERROR;
 
+    let errorMessage = 'Erro interno do servidor';
+    if (exception instanceof Error) {
+      errorMessage = exception.message;
+    }
+
     const errorResponse = {
       statusCode: status,
-      message: 'Erro interno do servidor',
+      message: errorMessage,
       timestamp: new Date().toISOString(),
     };
 
