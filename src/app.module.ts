@@ -5,6 +5,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AuthModule } from './auth/auth.module';
 import { ContasModule } from './modules/contas/contas.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { MetadataModule } from './modules/metadata/metadata.module';
 import { CorsMiddleware } from './common/middleware/cors.middleware';
 import { MigrationService } from './database/migration.service';
 
@@ -17,6 +18,7 @@ import { MigrationService } from './database/migration.service';
     AuthModule,
     ContasModule,
     DashboardModule,
+    MetadataModule,
   ],
   providers: [MigrationService],
 })
