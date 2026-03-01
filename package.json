@@ -8,7 +8,7 @@
     "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "migration": "node dist/main -migration",
+    "migration": "npm run build && node dist/main -migration",
     "migration:dev": "ts-node -r tsconfig-paths/register src/main.ts -migration",
     "test": "jest",
     "test:watch": "jest --watch",

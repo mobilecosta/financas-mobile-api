@@ -54,10 +54,17 @@ async function bootstrap() {
   const args = process.argv.slice(2);
   if (args.includes('-migration') || args.includes('--migration')) {
     console.log('Executando migrations...');
-    const migrationService = app.get(MigrationService);
-    await migrationService.runMigrations();
-    console.log('Migrations concluídas');
-    process.exit(0);
+    try {
+      const migrationService = app.get(MigrationService);
+      await migrationService.runMigrations();
+      console.log('Migrations concluídas');
+      await app.close();
+      process.exit(0);
+    } catch (error) {
+      console.error('Falha ao executar migrations:', error);
+      await app.close();
+      process.exit(1);
+    }
   }
 
   // Executar migrations automaticamente em produção se não foram executadas
@@ -81,4 +88,7 @@ async function bootstrap() {
   }
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error('Falha fatal ao iniciar aplicação:', error);
+  process.exit(1);
+});
